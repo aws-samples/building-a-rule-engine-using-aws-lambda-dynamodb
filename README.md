@@ -149,7 +149,12 @@ The Lambda would record the values for the rules and rules executed into this ta
 4				Rerun						success
 
 
+**Rules execution**
 
+Now that the different tables have been created we need to define our AWS Lambda environment that will consume our rules, execute them and update the results back to the results table in DynamoDB.
+Create a file on your local machine called trust-relationship.json and paste in the following statement:
+
+![Table](policy/trust-relationship.json)
 
 
 
