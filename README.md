@@ -112,42 +112,54 @@ The first thing we need to do is setup a few tables in DynamoDB.
 Rules table
 Using the AWS CLI create the rules table as follows:
 
+```
 aws dynamodb create-table     --table-name RuleTable     --attribute-definitions AttributeName=RuleNum,AttributeType=S AttributeName=Code,AttributeType=S AttributeName=Lang,AttributeType=S     --key-schema AttributeName=RuleNum,KeyType=HASH AttributeName=Code,KeyType=RANGE     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+```
 
 This table has three attributes, 1) a rule number which is a unique identifier for this rule, 2) function name or URL path which points to a file on Amazon S3 containing rule logic to execute and 3) the programing environment to instantiate on AWS Lambda when executing the rule.
 For example:
 
+```
 1 , func1 , nodejs
 2 , func2 , nodejs
 3 , s3://bucket/rules/python/rule3.py , python
+```
 
 Dependency table
 Lets use the AWS CLI again to create a table that will hold the dependencies between the rules
 
+```
 aws dynamodb create-table     --table-name DepTable     --attribute-definitions AttributeName=RuleNum,AttributeType=S AttributeName=Output,AttributeType=S     --key-schema AttributeName=RuleNum,KeyType=HASH AttributeName=Output,KeyType=RANGE      --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+```
 
 This table also has three attributes, 1) a rule number representing the rule to execute first, 2) a boolean condition representing the results of executing the rule and 3) the number of the next rule to execute if the condition is met.  The next rule to execute may also be a stop keyword that will result in terminating the rule execution.
 
 For example:
+```
 1 , success , 2
 1 , failure , 3
 2 , success , stop
 2 , failure , stop
 3 , success , stop
+```
 
 Streaming table
 This is a DynamoDB streams table where the first rule gets inserted and then would trigger the lambda function which can complete the rule cycle by reading from the above dependency table and execute the rule cycle. 
 
 Sample entry to stream table could be 
 
+```
 3					func1						nodejs
+```
 
 Results table
 The Lambda would record the values for the rules and rules executed into this table. This table would work like an audit table to record the rules output.
+
+```
 1				Executed					success
 3				Executed					failure
 4				Rerun						success
-
+```
 
 **Rules execution**
 
@@ -169,6 +181,79 @@ Create a file on your local machine called trust-relationship.json and paste in 
  }    
 
 ```
+
+Execute the following CLI command to create an IAM role for our AWS Lambda function to use.
+
+```
+aws iam create-role --role-name FireRuleLambdaRole     --path "/service-role/"     --assume-role-policy-document file://trust-relationship.json
+```
+
+Next create another file on your local machine called role-policy.json and paste in the following IAM policy:
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:*",
+                "dynamodb:*",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "events:*",
+                "iam:GetPolicy",
+                "iam:GetPolicyVersion",
+                "iam:GetRole",
+                "iam:GetRolePolicy",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListRolePolicies",
+                "iam:ListRoles",
+                "iam:PassRole",
+                "kms:ListAliases",
+                "lambda:*",
+                "logs:*",
+                "s3:*",
+                "tag:GetResources”
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+```
+
+Then execute the following CLI command to attach the policies to the role we created previously.
+```
+aws iam put-role-policy --role-name FireRuleLambdaRole     --policy-name FireRuleLambdaRolePolicy     --policy-document file://role-policy.json
+```
+
+From the AWS Lambda console, create a new function and select Author from scratch. Give it a name and select Nodejs 10.x as the runtime.
+
+![Image](images/image6.png)
+
+Make sure to also select the execution role FireRuleLambdaRole we created in the previous step.
+Next you need to configure our Lambda function to trigger when new events are available in our DynamoDB streaming table.  In the AWS Lambda console, choose the function you just created and configure a DynamoDB table trigger selecting the streaming table created in the earlier steps.
+
+![Image](images/image7.png)
+
+The rule functions can be embedded in a zip and configured as layers . This is one way of bundling the rule modules and calling from lambda.
+The sample code snippet is posted using lambda layers
+
+![Image](images/image8.png)
+
+We are now finished with the setup and ready to test our fully decoupled rules engine.
+
+![Image](images/image9.png)
+
+The above decoupled rule engine architecture can be customized to respond both synchronously and asynchronously. Synchronous response is where the event triggered could fire a rule chain and wait for the rules results.
+Asynchronous could be where the rule chain is initiated and the event flow isn’t blocked and asynchronously callback once the rule is executed with the output details.
+Same architecture can be customized and extended if grouping of rules is needed. This can be executed by breaking the complex rules into simple rules as entries in DynamoDB Table or a single entry into the lambda code as a single rule.
+Conclusion
+
+The above decoupled rule engine architecture tried to provide a high level framework to implement Simple rule execution using AWS Lambda and Dynamo DB on AWS. Using other services and with customizations other Rule Engine features can be implemented on AWS. For example, Business UI can be deployed Elastic Bean Stalk on ECS. Customizations are needed to connect to the Rule Model objects and workflow related setup.
+As building the full Rule engine framework is a product by itself, the idea of the guide was to introduce to a rule engine framework and how to implement a simple flow on AWS.
+
 
 
 ## Security
