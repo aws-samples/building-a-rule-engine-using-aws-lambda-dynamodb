@@ -34,21 +34,23 @@ Lets elaborate the same using credit card credit check rules example as below wi
 The perquisite step is to identify the Model Objects, which are called the Rule Objects needed to execute the rules. In the credit card example case it would the Credit Card, Account, Customer, Transaction objects. And then create rules on these objects. Lets create a simple rule for credit card. 
 
 General Rule object template would be like this
+```
 Object Name{
 Object field1:
 Object field2:
 Etc ……
 }
+```
 
 In this case as it is CreditCard we can name it as CreditCard Object
-
+```
 CreditCard{
 CreditCardName:
 CreditCardExpDate:
 CreditCardLocation:
 CreditCardPoints:
 }
-
+```
 The object parameters would have comparison values for these fields and rules could be and /or of these fields comparison.
 For example Rule 1 could be like this CreditCard.Location == India and CreditCard.Points ==100 then Discount Value is 10%.
 Then next rule could be CreditCard.ExpDate < Nov 2025 and CreditCard.Location in Bangalore then Discount is 10%
@@ -86,7 +88,7 @@ The below is an architecture to implement the execution of Simple Rule Execution
 
 We chose to use Amazon DynamoDB, a fully managed and highly scalable key/value store, to hold our rule definition, dependencies and the results of executing each rule.  We also chose to use AWS Lambda, a serverless execution environment giving users choice in programing language and complexity of the rule’s logic. Event generation is mimicked using inserts into the streams table which initiates the Rule execution.
 
-**Steps in Rule Execution **
+**Steps in Rule Execution**
 
 1)	Rule Authorization is done by System Admin, Business user would provide the values and the rules can be created into the Main Rule table by System Admin.
 2)	Event triggered in the APP layer could be initiation of the rule flow. For example events could be, debit in the account or transfer of amount from account. These could be the types of events. Each of the event could be associated with rule and can trigger a rule flow. 
@@ -249,7 +251,8 @@ We are now finished with the setup and ready to test our fully decoupled rules e
 The above decoupled rule engine architecture can be customized to respond both synchronously and asynchronously. Synchronous response is where the event triggered could fire a rule chain and wait for the rules results.
 Asynchronous could be where the rule chain is initiated and the event flow isn’t blocked and asynchronously callback once the rule is executed with the output details.
 Same architecture can be customized and extended if grouping of rules is needed. This can be executed by breaking the complex rules into simple rules as entries in DynamoDB Table or a single entry into the lambda code as a single rule.
-Conclusion
+
+**Conclusion**
 
 The above decoupled rule engine architecture tried to provide a high level framework to implement Simple rule execution using AWS Lambda and Dynamo DB on AWS. Using other services and with customizations other Rule Engine features can be implemented on AWS. For example, Business UI can be deployed Elastic Bean Stalk on ECS. Customizations are needed to connect to the Rule Model objects and workflow related setup.
 As building the full Rule engine framework is a product by itself, the idea of the guide was to introduce to a rule engine framework and how to implement a simple flow on AWS.
